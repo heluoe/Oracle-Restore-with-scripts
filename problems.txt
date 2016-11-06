@@ -1,0 +1,65 @@
+#1
+
+RMAN-00571: =========================================================== 
+RMAN-00569: =============== ERROR MESSAGE STACK FOLLOWS =============== 
+RMAN-00571: =========================================================== 
+RMAN-03002: failure of restore command at 11/26/2009 18:02:50 
+ORA-01180: can not create datafile 1 
+ORA-01110: data file 1: '/ora/eaglesh/system01.dbf' 
+
+problem:
+
+May be flash file has archivelog, we could remove them and restore again.
+It is not suggest open flash backup in image Oracle, cause we only need backup from the source of online Oracle.
+
+Check the db recovery file as:
+SQL> show parameter db_recovery;
+
+NAME				     TYPE	 VALUE
+------------------------------------ ----------- ------------------------------
+db_recovery_file_dest		     string	 /data1/backup
+db_recovery_file_dest_size	     big integer 180G
+
+SQL> show parameter db_recovery;
+
+NAME				     TYPE	 VALUE
+------------------------------------ ----------- ------------------------------
+db_recovery_file_dest		     string	 /data1/backup
+db_recovery_file_dest_size	     big integer 180G
+SQL> archive log list;
+Database log mode	       Archive Mode
+Automatic archival	       Enabled
+Archive destination	       /data1/backup
+Oldest online log sequence     1
+Next log sequence to archive   2
+Current log sequence	       2
+
+
+For switch to noarchivelog status as:
+SQL> shutdown normal;
+
+...
+
+
+SQL> startup mount;
+
+....
+
+SQL> alter database noarchivelog;
+
+...
+SQL> alter database open;
+
+
+
+#2
+RMAN-00571: ===========================================================
+RMAN-00569: =============== ERROR MESSAGE STACK FOLLOWS ===============
+RMAN-00571: ===========================================================
+RMAN-03002: failure of recover command at 11/06/2016 15:17:56
+RMAN-06054: media recovery requesting unknown archived log for thread 1 with sequence 620 and starting SCN of 226025599
+
+
+Problem:
+This issuss may be cause by the image Oracle server logs file which conflicted by the restore control file.
+So I just ignore it, and alter database open resetlogs will be fine.
