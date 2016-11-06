@@ -1,0 +1,108 @@
+########################################################################
+##   incremental_hot_database_backup.sh      ##
+##   edited by Wang Xiaoyun                  ##
+##        2016-7-6                           ##
+#########################################################################
+#!/bin/ksh 
+export LANG=en_US
+BACKUP_DATE=`date +%d`
+RMAN_LOG_FILE=/data1/logs/dbdissbac_`date '+%Y%m%d%H%M%S'`.log
+TODAY=`date`
+USER=`id|cut -d "(" -f2|cut -d ")" -f1`
+echo "-----------------$TODAY-------------------">$RMAN_LOG_FILE
+ORACLE_HOME=/data1/ora11g/product/11.2.0/dbhome_1
+export ORACLE_HOME
+RMAN=$ORACLE_HOME/bin/rman
+export RMAN
+#change your ORACLE_SID here
+ORACLE_SID=ORACLE_SID
+
+export ORACLE_SID
+#change your ORACLE_USER here
+ORACLE_USER=ora11g
+export ORACLE_USER
+ 
+echo "ORACLE_SID: $ORACLE_SID">>$RMAN_LOG_FILE
+echo "ORACLE_HOME:$ORACLE_HOME">>$RMAN_LOG_FILE
+echo "ORACLE_USER:$ORACLE_USER">>$RMAN_LOG_FILE
+echo "==========================================">>$RMAN_LOG_FILE
+echo "BACKUP DATABASE BEGIN......">>$RMAN_LOG_FILE
+echo "                   ">>$RMAN_LOG_FILE
+chmod 666 $RMAN_LOG_FILE
+ 
+WEEK_DAILY=`date +%a`
+ 
+case  "$WEEK_DAILY" in
+       "Mon")
+            BAK_LEVEL=2
+            ;;
+       "Tue")
+            BAK_LEVEL=2
+            ;;
+       "Wed")
+            BAK_LEVEL=2
+            ;;
+       "Thu")
+            BAK_LEVEL=2
+            ;;
+       "Fri")
+            BAK_LEVEL=2
+            ;;
+       "Sat")
+            BAK_LEVEL=2
+            ;;
+       "Sun")
+            BAK_LEVEL=0
+            ;;
+       "*")
+            BAK_LEVEL=error
+esac
+#BAK_LEVEL=0
+export BAK_LEVEL=$BAK_LEVEL 
+echo "Today is : $WEEK_DAILY  incremental level= $BAK_LEVEL">>$RMAN_LOG_FILE
+ 
+RUN_STR="
+BAK_LEVEL=$BAK_LEVEL
+export BAK_LEVEL
+#change you Oracle sys passwd and ORACLE_SID here
+$RMAN TARGET sys/passwd@ORACLE_SID msglog $RMAN_LOG_FILE append <<EOF
+CONFIGURE CONTROLFILE AUTOBACKUP ON;
+CONFIGURE CONTROLFILE AUTOBACKUP FORMAT FOR DEVICE TYPE DISK TO '/data1/backup/level_cont_spfile_%F';
+backup  incremental level BAK_LEVEL  database format '/data1/backup/level0_%d_%s_%p_%u' plus archivelog format '/data1/backup/level0arclog_%d_%s_%p_%u.bak'  delete all input;
+report obsolete; 
+delete noprompt obsolete; 
+crosscheck backup; 
+delete noprompt expired backup;
+list backup summary;
+EOF
+"
+ # Initiate the command string 
+ 
+if [ "$CUSER" = "root" ] 
+then 
+    echo "Root Command String: $RUN_STR" >> $RMAN_LOG_FILE     
+    su - $ORACLE_USER -c "$RUN_STR" >> $RMAN_LOG_FILE 
+    RSTAT=$? 
+else 
+    echo "User Command String: $RUN_STR" >> $RMAN_LOG_FILE     
+    /bin/sh -c "$RUN_STR" >> $RMAN_LOG_FILE 
+    RSTAT=$? 
+fi 
+ 
+# --------------------------------------------------------------------------- 
+# Log the completion of this script. 
+# --------------------------------------------------------------------------- 
+if [ "$RSTAT" = "0" ] 
+then 
+    LOGMSG="ended successfully" 
+else 
+    LOGMSG="ended in error" 
+fi 
+ 
+echo >> $RMAN_LOG_FILE 
+echo Script $0 >> $RMAN_LOG_FILE 
+echo ==== $LOGMSG on `date` ==== >> $RMAN_LOG_FILE 
+echo >> $RMAN_LOG_FILE 
+#/bin/mailx -s "RMAN Backup SID " daimm@sf-express.com < $RMAN_LOG_FILE 
+ 
+exit $RSTAT 
