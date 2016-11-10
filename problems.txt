@@ -63,3 +63,73 @@ RMAN-06054: media recovery requesting unknown archived log for thread 1 with seq
 Problem:
 This issuss may be cause by the image Oracle server logs file which conflicted by the restore control file.
 So I just ignore it, and alter database open resetlogs will be fine.
+
+
+
+
+#3
+
+creating datafile file number=1 name=/dsd_dbf/system01.dbf
+RMAN-00571: ===========================================================
+RMAN-00569: =============== ERROR MESSAGE STACK FOLLOWS ===============
+RMAN-00571: ===========================================================
+RMAN-03002: failure of restore command at 11/06/2016 19:30:33
+ORA-01180: can not create datafile 1
+ORA-01110: data file 1: '/dsd_dbf/system01.dbf'
+
+media recovery failed
+RMAN-00571: ===========================================================
+RMAN-00569: =============== ERROR MESSAGE STACK FOLLOWS ===============
+RMAN-00571: ===========================================================
+RMAN-03002: failure of recover command at 11/06/2016 19:30:36
+ORA-00283: recovery session canceled due to errors
+RMAN-11003: failure during parse/execution of SQL statement: alter database recover if needed
+ start until cancel using backup controlfile
+ORA-00283: recovery session canceled due to errors
+ORA-19909: datafile 1 belongs to an orphan incarnation
+ORA-01110: data file 1: '/dsd_dbf/system01.dbf'
+
+Problem:  This issues possible happen in the image oracle server when you just alter database open resetlogs that may 
+cause your image oracle status become ORPHAN, so there are two way to slove.
+
+Firs, shutdown oracle and open normal to change the status become PARENT. 
+
+Second, mannul reset the status back for PARENT.
+
+RMAN> list incarnation;
+
+using target database control file instead of recovery catalog
+
+List of Database Incarnations
+DB Key  Inc Key DB Name  DB ID            STATUS  Reset SCN  Reset Time
+------- ------- -------- ---------------- --- ---------- ----------
+1       1       DB_IMAGE 3396902779       PARENT  1          28-NOV-12
+7       7       DB_IMAGE 3396902779       ORPHAN  202436948  06-JUL-16
+6       6       DB_IMAGE 3396902779       ORPHAN  202496230  06-JUL-16
+2       2       DB_IMAGE 3396902779       PARENT  202668467  06-JUL-16
+3       3       DB_IMAGE 3396902779       ORPHAN  202668471  06-JUL-16
+4       4       DB_IMAGE 3396902779       ORPHAN  202668475  06-JUL-16
+5       5       DB_IMAGE 3396902779       ORPHAN  202668479  06-JUL-16
+8       8       DB_IMAGE 3396902779       CURRENT 226025600  06-NOV-16
+
+
+RMAN> reset database to incarnation 2;
+
+database reset to incarnation 2
+
+
+#now restore work... or you could try to run the ol_db_diss_res.py again.
+RMAN> restore database;
+
+Starting restore at 06-NOV-16
+allocated channel: ORA_DISK_1
+channel ORA_DISK_1: SID=160 device type=DISK
+
+channel ORA_DISK_1: starting datafile backup set restore
+channel ORA_DISK_1: specifying datafile(s) to restore from backup set
+channel ORA_DISK_1: restoring datafile 00001 to /dsd_dbf/system01.dbf
+channel ORA_DISK_1: restoring datafile 00002 to /dsd_dbf/sysaux01.dbf
+....
+
+
+
